@@ -155,7 +155,7 @@ void TractorBeam::update(float delta)
                     diff = target->getPosition() - destination;
                     float target_distance = std::max(0.0f, sf::length(diff) - parent->getRadius() - target->getRadius());
                     float distanceToDrag = std::min(target_distance, dragCapability);
-                    if (parent->useEnergy(parent->systems[10].power_user_factor))
+                    if (parent->useEnergy(parent->systems[SYS_Docks].power_user_factor)) //uses cargo docks energy usage // ~~ sweet tractor beam ooh ooh ooh ~~ 
                     {
                         P<PlayerSpaceship> target_ship = target;
                         if (target_distance < dragCapability && target_ship && mode == TBM_Pull)

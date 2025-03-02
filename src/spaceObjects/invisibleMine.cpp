@@ -8,7 +8,7 @@
 #include "scriptInterface.h"
 
 
-/// An InvisibleMine. Should explode and do damage but not drawn opside of GM radar. Not for player use.
+/// An Invisible Mine. Should explode and do damage but not be drawn opside of GM radar. Not for player use.
 REGISTER_SCRIPT_SUBCLASS(InvisibleMine, SpaceObject)
 {
   // Set a function that will be called if the InvisibleMine explodes.
@@ -26,8 +26,6 @@ InvisibleMine::InvisibleMine()
     // ejectTimeout = 0.0;
     particleTimeout = 0.0;
     setRadarSignatureInfo(0.0, 0.05, 0.0);
-
-    // PathPlannerManager::getInstance()->addAvoidObject(this, trigger_range * 1.2f);
 }
 
 void InvisibleMine::draw3D()
@@ -64,26 +62,6 @@ void InvisibleMine::drawOnGMRadar(sf::RenderTarget& window, sf::Vector2f positio
 
 void InvisibleMine::update(float delta)
 {
-    if (particleTimeout > 0)
-    {
-        particleTimeout -= delta;
-    }else{
-        sf::Vector3f pos = sf::Vector3f(getPosition().x, getPosition().y, getPositionZ());
-        ParticleEngine::spawn(pos, pos + sf::Vector3f(random(-100, 100), random(-100, 100), random(-100, 100)), sf::Vector3f(1, 1, 1), sf::Vector3f(0, 0, 1), 30, 0, 10.0);
-        particleTimeout = 0.4;
-    }
-
-    // if (ejectTimeout > 0.0)
-    // {
-    //     ejectTimeout -= delta;
-    //     setVelocity(sf::vector2FromAngle(getRotation()) * data.speed);
-    // }else{
-    //     setVelocity(sf::Vector2f(0, 0));
-    // }
-    // if (position_z < 0)
-    //     setPositionZ(getPositionZ() + 0.5);
-    // if (position_z > 0)
-    //     setPositionZ(getPositionZ() - 0.5);
     if (!triggered)
         return;
     triggerTimeout -= delta;
@@ -103,11 +81,6 @@ void InvisibleMine::collide(Collisionable* target, float force)
 
     triggered = true;
 }
-
-// void InvisibleMine::eject()
-// {
-//     ejectTimeout = data.lifetime;
-// }
 
 void InvisibleMine::explode()
 {

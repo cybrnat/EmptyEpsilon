@@ -28,6 +28,8 @@ public:
     friend class PathPlanner;
 };
 
+class CpuShip; // forward declaration, because trust me bro 
+
 //The path planner is used to plan a route trough the world map without hitting any objects.
 class PathPlanner : public sf::NonCopyable
 {
@@ -39,11 +41,11 @@ public:
 
     std::vector<sf::Vector2f> route;
 
-    void plan(sf::Vector2f start, sf::Vector2f end);
+    void plan(CpuShip *owner, sf::Vector2f start, sf::Vector2f end);
     void clear();
 private:
-    void recursivePlan(sf::Vector2f start, sf::Vector2f end, int& recursion_counter);
-    bool checkToAvoid(sf::Vector2f start, sf::Vector2f end, sf::Vector2f& new_point, sf::Vector2f* alt_point=NULL);
+    void recursivePlan(CpuShip *owner, sf::Vector2f start, sf::Vector2f end, int& recursion_counter);
+    bool checkToAvoid(CpuShip *owner, sf::Vector2f start, sf::Vector2f end, sf::Vector2f& new_point, sf::Vector2f* alt_point=NULL);
 };
 
 #endif//PATH_PLANNER_H

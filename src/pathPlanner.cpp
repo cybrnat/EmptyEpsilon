@@ -1,4 +1,5 @@
 #include "pathPlanner.h"
+#include "spaceObjects/cpuShip.h"
 
 const double small_object_grid_size = 5000.0f;
 const double small_object_max_size = 1000.0f;
@@ -75,13 +76,13 @@ PathPlanner::PathPlanner()
     manager = PathPlannerManager::getInstance();
 }
 
-void PathPlanner::plan(sf::Vector2f start, sf::Vector2f end)
+void PathPlanner::plan(CpuShip *owner, sf::Vector2f start, sf::Vector2f end)
 {
     if (route.size() == 0 || sf::length(route.back() - end) > 2000)
     {
         route.clear();
         int recursion_counter = 0;
-        recursivePlan(start, end, recursion_counter);
+        recursivePlan(owner, start, end, recursion_counter);
         route.push_back(end);
 
         insert_idx = 0;
@@ -98,7 +99,7 @@ void PathPlanner::plan(sf::Vector2f start, sf::Vector2f end)
             sf::Vector2f p1 = route[insert_idx];
 
             sf::Vector2f new_point;
-            if (checkToAvoid(p0, p1, new_point))
+            if (checkToAvoid(owner, p0, p1, new_point))
             {
                 route.insert(route.begin() + insert_idx, new_point);
             }
@@ -110,7 +111,7 @@ void PathPlanner::plan(sf::Vector2f start, sf::Vector2f end)
             sf::Vector2f p1 = route[remove_idx];
             sf::Vector2f new_position;
             sf::Vector2f alt_position;
-            if (!checkToAvoid(p0, p1, new_position, &alt_position))
+            if (!checkToAvoid(owner, p0, p1, new_position, &alt_position))
             {
                 route.erase(route.begin() + remove_idx - 1);
             }else{
@@ -122,7 +123,7 @@ void PathPlanner::plan(sf::Vector2f start, sf::Vector2f end)
         {
             sf::Vector2f new_point;
             sf::Vector2f p1 = route[remove_idx2];
-            if (!checkToAvoid(p0, p1, new_point))
+            if (!checkToAvoid(owner, p0, p1, new_point))
             {
                 route.erase(route.begin(), route.begin() + remove_idx2);
             }else{
@@ -141,20 +142,20 @@ void PathPlanner::clear()
     route.clear();
 }
 
-void PathPlanner::recursivePlan(sf::Vector2f start, sf::Vector2f end, int& recursion_counter)
+void PathPlanner::recursivePlan(CpuShip *owner, sf::Vector2f start, sf::Vector2f end, int& recursion_counter)
 {
     sf::Vector2f new_point;
-    if (recursion_counter < 100 && checkToAvoid(start, end, new_point))
+    if (recursion_counter < 100 && checkToAvoid(owner, start, end, new_point))
     {
         recursion_counter += 1;
-        recursivePlan(start, new_point, recursion_counter);
-        recursivePlan(new_point, end, recursion_counter);
+        recursivePlan(owner, start, new_point, recursion_counter);
+        recursivePlan(owner, new_point, end, recursion_counter);
     }else{
         route.push_back(end);
     }
 }
 
-bool PathPlanner::checkToAvoid(sf::Vector2f start, sf::Vector2f end, sf::Vector2f& new_point, sf::Vector2f* alt_point)
+bool PathPlanner::checkToAvoid(CpuShip *owner, sf::Vector2f start, sf::Vector2f end, sf::Vector2f& new_point, sf::Vector2f* alt_point)
 {
     sf::Vector2f startEndDiff = end - start;
     float startEndLength = sf::length(startEndDiff);
@@ -232,18 +233,25 @@ bool PathPlanner::checkToAvoid(sf::Vector2f start, sf::Vector2f end, sf::Vector2
             {
                 if (i->source)
                 {
-                    sf::Vector2f position = i->source->getPosition();
-                    float f = sf::dot(startEndDiff, position - start) / startEndLength;
-                    if (f > 0 && f < startEndLength - i->size)
+                    if (owner->getOrder() == AI_FlyTowardsBlind && i->source->getMultiplayerClassIdentifier() == "Mine")
                     {
-                        sf::Vector2f q = start + startEndDiff / startEndLength * f;
-                        if ((q - position) < i->size)
+                        //~~ sweet child o' mine ~~ // ~~ what doesn't mine you make you stronger/mine a little harder ~~
+                    }
+                    else
+                    {
+                        sf::Vector2f position = i->source->getPosition();
+                        float f = sf::dot(startEndDiff, position - start) / startEndLength;
+                        if (f > 0 && f < startEndLength - i->size)
                         {
-                            if (f < firstAvoidF)
+                            sf::Vector2f q = start + startEndDiff / startEndLength * f;
+                            if ((q - position) < i->size)
                             {
-                                avoidObject = *i;
-                                firstAvoidF = f;
-                                firstAvoidQ = q;
+                                if (f < firstAvoidF)
+                                {
+                                    avoidObject = *i;
+                                    firstAvoidF = f;
+                                    firstAvoidQ = q;
+                                }
                             }
                         }
                     }

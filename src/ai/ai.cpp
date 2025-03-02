@@ -497,7 +497,7 @@ void ShipAI::runAttack(P<SpaceObject> target)
 
 void ShipAI::flyTowards(sf::Vector2f target, float keep_distance)
 {
-    pathPlanner.plan(owner->getPosition(), target);
+    pathPlanner.plan(owner, owner->getPosition(), target);
 
     if (pathPlanner.route.size() > 0)
     {
@@ -557,7 +557,7 @@ void ShipAI::flyTowards(sf::Vector2f target, float keep_distance)
 void ShipAI::flyFormation(P<SpaceObject> target, sf::Vector2f offset)
 {
     sf::Vector2f target_position = target->getPosition() + sf::rotateVector(owner->getOrderTargetLocation(), target->getRotation());
-    pathPlanner.plan(owner->getPosition(), target_position);
+    pathPlanner.plan(owner, owner->getPosition(), target_position);
 
     if (pathPlanner.route.size() == 1)
     {
