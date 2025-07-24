@@ -1,6 +1,7 @@
 #include "missileWeapon.h"
 #include "particleEffect.h"
 #include "spaceObjects/explosionEffect.h"
+#include "spaceObjects/beamEffect.h"
 
 MissileWeapon::MissileWeapon(string multiplayer_name, const MissileWeaponData& data)
 : SpaceObject(10, multiplayer_name), data(data)
@@ -74,6 +75,10 @@ void MissileWeapon::collide(Collisionable* target, float force)
     {
         return;
     }
+    if (P<BeamEffect>(object))
+    {
+        return;
+    }
     P<SpaceShip> ship = object;
     if (ship && owner == ship->getDockedWith())
     {
@@ -83,6 +88,7 @@ void MissileWeapon::collide(Collisionable* target, float force)
     hitObject(object);
     destroy();
 }
+
 
 void MissileWeapon::takeDamage(float damage_amount, DamageInfo info)
 {

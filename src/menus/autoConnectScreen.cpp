@@ -14,7 +14,7 @@
 #include "../screenComponents/numericEntryPanel.h"
 
 AutoConnectScreen::AutoConnectScreen(ECrewPosition crew_position, int auto_mainscreen, bool control_main_screen, string ship_filter)
-: crew_position(crew_position), auto_mainscreen(auto_mainscreen) , control_main_screen(control_main_screen)
+: crew_position(crew_position), auto_mainscreen(auto_mainscreen) , control_main_screen(control_main_screen), update_timer(0.0f)
 {
     if (!game_client)
     {
@@ -49,7 +49,6 @@ AutoConnectScreen::AutoConnectScreen(ECrewPosition crew_position, int auto_mains
             ship_filters[key] = "1";
         else if (key_value.size() == 2)
             ship_filters[key] = key_value[1].strip();
-        LOG(INFO) << "Auto connect filter: " << key << " = " << ship_filters[key];
         filter_label->setText(filter_label->getText() + key + " : " + ship_filters[key] + " ");
     }
 
@@ -72,10 +71,17 @@ AutoConnectScreen::~AutoConnectScreen()
 
 void AutoConnectScreen::update(float delta)
 {
+    // Throttle updates to reduce lag - only update every 0.5 seconds
+    update_timer += delta;
+    if (update_timer < 0.5f)
+        return;
+    update_timer = 0.0f;
+
     if (scanner)
     {
         std::vector<ServerScanner::ServerInfo> serverList = scanner->getServerList();
         string autoconnect_address = PreferencesManager::get("autoconnect_address", "");
+        bool multi_server_mode = PreferencesManager::get("multi_server_mode", "0").toInt() > 0;
 
         if (autoconnect_address != "") {
             status_label->setText("Using autoconnect server " + autoconnect_address);
@@ -83,10 +89,32 @@ void AutoConnectScreen::update(float delta)
             new GameClient(VERSION_NUMBER, autoconnect_address);
             scanner->destroy();
         } else if (serverList.size() > 0) {
-            status_label->setText("Found server " + serverList[0].name);
-            connect_to_address = serverList[0].address;
-            new GameClient(VERSION_NUMBER, serverList[0].address);
-            scanner->destroy();
+            // In multi-server mode, we need to find the correct server based on ship filters
+            if (multi_server_mode) {
+                bool found_server = false;
+                for (const auto& server : serverList) {
+                    // Check if this server matches our ship filters
+                    if (ship_filters.find("server") != ship_filters.end()) {
+                        if (server.name == ship_filters["server"]) {
+                            status_label->setText("Found server " + server.name);
+                            connect_to_address = server.address;
+                            new GameClient(VERSION_NUMBER, server.address);
+                            scanner->destroy();
+                            found_server = true;
+                            break;
+                        }
+                    }
+                }
+                if (!found_server) {
+                    status_label->setText("Searching for matching server...");
+                }
+            } else {
+                // In single-server mode, just connect to the first available server
+                status_label->setText("Found server " + serverList[0].name);
+                connect_to_address = serverList[0].address;
+                new GameClient(VERSION_NUMBER, serverList[0].address);
+                scanner->destroy();
+            }
         } else {
             status_label->setText("Searching for server...");
         }
@@ -98,11 +126,18 @@ void AutoConnectScreen::update(float delta)
         case GameClient::Authenticating:
             status_label->setText("Connecting: " + connect_to_address.toString());
             break;
-        case GameClient::WaitingForPassword: //For now, just disconnect when we found a password protected server.
+        case GameClient::WaitingForPassword:
+            status_label->setText("Server requires password. Please use manual connection.");
+            disconnectFromServer();
+            returnToMainMenu();
+            break;
         case GameClient::Disconnected:
             disconnectFromServer();
-            scanner = new ServerScanner(VERSION_NUMBER);
-            scanner->scanLocalNetwork();
+            // Add a small delay before restarting scan to reduce network overhead
+            if (update_timer > 2.0f) {
+                scanner = new ServerScanner(VERSION_NUMBER);
+                scanner->scanLocalNetwork();
+            }
             break;
         case GameClient::Connected:
             if (game_client->getClientId() > 0)
@@ -112,7 +147,13 @@ void AutoConnectScreen::update(float delta)
                         my_player_info = i;
                 if (my_player_info && gameGlobalInfo)
                 {
-                    status_label->setText("Waiting for ship on " + connect_to_address.toString() + "...");
+                    // Check if scenario has started
+                    if (!gameGlobalInfo->scenario_started) {
+                        status_label->setText("Connected to server. Waiting for scenario to start...");
+                        return;
+                    }
+
+                    status_label->setText("Scenario started. Looking for available ships...");
                     if (!my_spaceship)
                     {
                         for(int n=0; n<GameGlobalInfo::max_player_ships; n++)
@@ -134,11 +175,12 @@ void AutoConnectScreen::update(float delta)
 
                             if(!waiting_for_password) {
                                 status_label->hide();
-                                connectToMyShip();
+                                my_player_info->ui_spawn_pending = true;
+                                connectToShip(my_player_info->ship_id);
                             }
                         }
                     }
-                }else{
+                } else {
                     status_label->setText("Connected, waiting for game data...");
                 }
             }
@@ -147,195 +189,99 @@ void AutoConnectScreen::update(float delta)
     }
 }
 
-void AutoConnectScreen::autoConnectPasswordEntryOnOkClick() {
-        P<PlayerSpaceship> ship = my_spaceship;
-
-        if (ship)
-        {
-            // Get the password.
-            string password = password_entry->getText();
-            string control_code = ship->control_code;
-
-            if (password != control_code)
-            {
-                // Password doesn't match. Unset the player ship selection.
-                LOG(INFO) << "Password doesn't match control code. Attempt: " << password;
-                my_player_info->commandSetShipId(-1);
-                // Notify the player.
-                password_label->setText("Incorrect control code. Re-enter code for " + ship->getCallSign() + ":");
-                // Reset the dialog.
-                password_entry->setText("");
-            }
-            else
-            {
-                // Password matches.
-                LOG(INFO) << "Password matches control code.";
-                // Set the player ship.
-                my_player_info->commandSetShipId(ship->getMultiplayerId());
-                // Notify the player.
-                password_label->setText("Control code accepted.\nGranting access to " + ship->getCallSign() + ".");
-                // Reset and hide the password field.
-                password_entry->setText("");
-                password_entry->hide();
-                password_entry_ok->hide();
-                // Show a confirmation button.
-                password_confirmation->show();
-
-                destroy();
-                my_player_info->spawnUI();
-            }
-        }
-}
-
-void AutoConnectScreen::connectToMyShip() {
-    P<PlayerSpaceship> ship = my_spaceship;
-    waiting_for_password = false;
-
-    // Control code entry dialog.
-    password_overlay = new GuiOverlay(this, "PASSWORD_OVERLAY", sf::Color::Black - sf::Color(0, 0, 0, 192));
-    password_overlay->hide();
-    password_entry_box = new GuiPanel(password_overlay, "PASSWORD_ENTRY_BOX");
-    password_entry_box->setPosition(0, 350, ATopCenter)->setSize(600, 200);
-    password_label = new GuiLabel(password_entry_box, "PASSWORD_LABEL", "Enter this ship's control code:", 30);
-    password_label->setPosition(0, 40, ATopCenter);
-    password_entry = new GuiTextEntry(password_entry_box, "PASSWORD_ENTRY", "");
-    password_entry->setPosition(20, 0, ACenterLeft)->setSize(400, 50);
-    password_entry->enterCallback([this](string text)
-    {
-        this->autoConnectPasswordEntryOnOkClick();
-    });
-
-    // Control code entry button.
-    password_entry_ok = new GuiButton(password_entry_box, "PASSWORD_ENTRY_OK", "Ok", [this]()
-    {
-        this->autoConnectPasswordEntryOnOkClick();
-    });
-    password_entry_ok->setPosition(420, 0, ACenterLeft)->setSize(160, 50);
-
-    // Control code confirmation button
-    password_confirmation = new GuiButton(password_entry_box, "PASSWORD_CONFIRMATION_BUTTON", "OK", [this]() {
-        // Reset the dialog.
-        password_entry->show();
-        password_entry_ok->show();
-        password_label->setText("Enter this ship's control code:")->setPosition(0, 40, ATopCenter);
-        password_confirmation->hide();
-        // Hide the dialog.
-        password_overlay->hide();
-    });
-    password_confirmation->setPosition(0, -20, ABottomCenter)->setSize(250, 50)->hide();
-
-
-    /*************************************************
-    ** Control Code - Numeric Entry Pad
-    */
-    control_code_numeric_panel = new GuiControlNumericEntryPanel(this, "CODE_ENTRY", "Enter this ship's control code");
-    control_code_numeric_panel->enterCallback([this](int value) {
-        P<PlayerSpaceship> ship = my_spaceship;
-
-        if(ship->control_code.toInt() == value) {
-            destroy();
-            my_player_info->spawnUI();
-        }
-        else
-        {
-            control_code_numeric_panel->setPrompt("Incorrect Control Code");
-            control_code_numeric_panel->clearCode();
-        }
-    });
-
-    control_code_numeric_panel->clearCallback([this](int value) {
-        control_code_numeric_panel->clearPrompt();
-    });
-
-    if (ship->control_code.length() > 0 && PreferencesManager::get("autoconnect_control_code_bypass", "").toInt() < 1)
-    {
-        LOG(INFO) << "Autoconnect selected " << ship->getCallSign() << ", which has a control code.";
-
-        if(this->is_integer(ship->control_code) && PreferencesManager::get("autoconnect_control_code_prefer_numeric_pad", "").toInt() > 0) {
-            waiting_for_password = true;
-            control_code_numeric_panel->show();
-        }
-        else
-        {
-            // Show the control code entry dialog.
-            waiting_for_password = true;
-            password_overlay->show();
-        }
-    } else {
-        destroy();
-        my_player_info->spawnUI();
-    }
-}
-
 bool AutoConnectScreen::isValidShip(int index)
 {
     P<PlayerSpaceship> ship = gameGlobalInfo->getPlayerShip(index);
-
-    if (!ship || !ship->ship_template)
+    if (!ship || !ship->ship_template || ship->ship_template->getType() == ShipTemplate::TemplateType::Drone)
         return false;
-    
-    filter_label->setText("");
 
-    for(auto it : ship_filters)
+    // Check if this ship is already crewed by this player
+    if (my_player_info->ship_id == ship->getMultiplayerId())
+        return false;
+
+    // Check if this ship is already crewed by another player
+    foreach(PlayerInfo, i, player_info_list)
     {
-        if (it.first == "solo")
-        {
-            int crew_at_position = 0;
-            foreach(PlayerInfo, i, player_info_list)
-            {
-                if (i->ship_id == ship->getMultiplayerId())
-                {
-                    if (crew_position != max_crew_positions && i->crew_position[crew_position])
-                        crew_at_position++;
-                }
-            }
-            if (crew_at_position > 0)
-                return false;
-        }
-        else if (it.first == "faction")
-        {
-            if (ship->getFactionId() != FactionInfo::findFactionId(it.second))
-                return false;
-        }
-        else if (it.first == "callsign")
-        {
-            if (ship->getCallSign().lower() != it.second.lower())
-                return false;
-        }
-        else if (it.first == "type")
-        {
-            if (ship->getTypeName().lower() != it.second.lower())
-                return false;
-        }
-        else
-        {
-            LOG(WARNING) << "Unknown ship filter: " << it.first << " = " << it.second;
-        }
+        if (i->ship_id == ship->getMultiplayerId())
+            return false;
     }
+
     return true;
 }
 
 void AutoConnectScreen::connectToShip(int index)
 {
     P<PlayerSpaceship> ship = gameGlobalInfo->getPlayerShip(index);
+    if (!ship) return;
 
-    if (auto_mainscreen != 1 && crew_position != max_crew_positions)    //If we are not the main screen, setup the right crew position.
+    my_player_info->commandSetShipId(ship->getMultiplayerId());
+    
+    if (ship->control_code.length() > 0 && PreferencesManager::get("autoconnect_control_code_bypass", "0") != "1")
     {
-        my_player_info->commandSetCrewPosition(crew_position, true);
-        my_player_info->commandSetMainScreenControl(control_main_screen);
-
-        // Add more screen
-        if (PreferencesManager::get("autostationslist") != "")
-        {
-            LOG(WARNING) << "Unknown color definition: ";
-            for(string station : PreferencesManager::get("autostationslist").split(";"))
-            {
-                int crew_position_sup = station.toInt() - 1;
-                if (crew_position_sup < 0) crew_position_sup = 0;
-                if (crew_position_sup > max_crew_positions) crew_position_sup = max_crew_positions;
-                my_player_info->commandSetCrewPosition(ECrewPosition(crew_position_sup), true);
+        if (control_code_numeric_panel) { control_code_numeric_panel->destroy(); control_code_numeric_panel = nullptr; }
+        
+        waiting_for_password = true;
+        
+        control_code_numeric_panel = new GuiControlNumericEntryPanel(this, "CODE_ENTRY", tr("Enter this ship's control code"));
+        control_code_numeric_panel->setPosition(0, 0, ACenter);
+        control_code_numeric_panel->enterCallback([this, ship](int value) {
+            if (ship->control_code.toInt() == value) {
+                waiting_for_password = false;
+                autoConnectPasswordEntryOnOkClick();
+            } else {
+                control_code_numeric_panel->setPrompt("Incorrect Control Code");
+                control_code_numeric_panel->clearCode();
             }
+        });
+        control_code_numeric_panel->clearCallback([this](int) {
+            waiting_for_password = false;
+            if (control_code_numeric_panel) { 
+                control_code_numeric_panel->destroy(); 
+                control_code_numeric_panel = nullptr; 
+            }
+            destroy();
+            returnToMainMenu();
+        });
+    } else {
+        autoConnectPasswordEntryOnOkClick();
+    }
+}
+
+void AutoConnectScreen::autoConnectPasswordEntryOnOkClick()
+{
+    P<PlayerSpaceship> ship = my_spaceship;
+    if (!ship)
+    {
+        destroy();
+        return;
+    }
+
+    if (control_code_numeric_panel)
+    {
+        control_code_numeric_panel->destroy();
+        control_code_numeric_panel = nullptr;
+    }
+
+    my_player_info->commandSetShipId(ship->getMultiplayerId());
+
+    for(int n = 0; n < max_crew_positions; n++)
+        my_player_info->commandSetCrewPosition(ECrewPosition(n), false);
+
+    if (auto_mainscreen != 1 && crew_position != max_crew_positions)
+        my_player_info->commandSetCrewPosition(crew_position, true);
+
+    string autostationslist = PreferencesManager::get("autostationslist", "");
+    if (autostationslist != "")
+    {
+        std::vector<string> stations = autostationslist.split(",");
+        for(string station : stations)
+        {
+            int station_id = station.toInt();
+            if (station_id >= 0 && station_id < max_crew_positions)
+                my_player_info->commandSetCrewPosition(ECrewPosition(station_id), true);
         }
     }
-    my_player_info->commandSetShipId(ship->getMultiplayerId());
+
+    destroy();
+    my_player_info->spawnUI();
 }

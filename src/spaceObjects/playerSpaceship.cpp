@@ -1566,7 +1566,7 @@ void PlayerSpaceship::onReceiveClientCommand(int32_t client_id, sf::Packet& pack
             int32_t target;
             int8_t station;
             packet >> target >> station;
-            if (station >= 0 && station < 10) 
+            if (station >= 0 && station < max_target_id) 
                 target_id[station] = target;
         }
         break;

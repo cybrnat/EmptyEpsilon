@@ -42,3 +42,9 @@ logs
 _build_win32
 cmake/_win32
 _build
+hardware.ini
+options.ini
+/_build_w32
+/scripts
+startup.bat
+server_config.ini

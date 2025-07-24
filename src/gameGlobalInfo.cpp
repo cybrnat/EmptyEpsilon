@@ -66,6 +66,7 @@ GameGlobalInfo::GameGlobalInfo()
     all_can_be_targeted = true;
     logs_by_station = true;
     use_warp_terrain = true;
+    scenario_started = false;
 
     registerMemberReplication(&scanning_complexity);
     registerMemberReplication(&hacking_difficulty);
@@ -90,6 +91,8 @@ GameGlobalInfo::GameGlobalInfo()
     registerMemberReplication(&intercept_all_comms_to_gm);
     registerMemberReplication(&color_by_faction);
     registerMemberReplication(&locals_name, 1.0);
+    registerMemberReplication(&scenario_started);
+    registerMemberReplication(&globalBriefingPages);
 
     for(unsigned int n=0; n<factionInfo.size(); n++)
         reputation_points.push_back(0);
@@ -150,12 +153,19 @@ void GameGlobalInfo::update(float delta)
     if (my_player_info)
     {
         //Set the my_spaceship variable based on the my_player_info->ship_id
-        if ((my_spaceship && my_spaceship->getMultiplayerId() != my_player_info->ship_id) || (my_spaceship && my_player_info->ship_id == -1) || (!my_spaceship && my_player_info->ship_id != -1))
+        if ((my_spaceship && my_spaceship->getMultiplayerId() != my_player_info->ship_id) ||
+            (my_spaceship && my_player_info->ship_id == -1) ||
+            (!my_spaceship && my_player_info->ship_id != -1))
         {
             if (game_server)
                 my_spaceship = game_server->getObjectById(my_player_info->ship_id);
             else
                 my_spaceship = game_client->getObjectById(my_player_info->ship_id);
+        }
+
+        // NEW: If UI spawn is pending and my_spaceship is now valid, spawn UI
+        if (my_player_info->ui_spawn_pending && my_spaceship) {
+            my_player_info->spawnUI();
         }
     }
     elapsed_time += delta;
@@ -214,6 +224,7 @@ void GameGlobalInfo::reset()
 void GameGlobalInfo::startScenario(string filename)
 {
     reset();
+    scenario_started = true;  // Set the flag when scenario starts
 
     i18n::reset();
     i18n::load("locale/" + PreferencesManager::get("language", "en") + ".po");
@@ -746,3 +757,18 @@ static int getEEVersion(lua_State* L)
 }
 /// Get a string with the current version number, like "20191231"
 REGISTER_SCRIPT_FUNCTION(getEEVersion);
+
+/// NB briefing pages
+static int setBriefing(lua_State* L)
+{
+    gameGlobalInfo->globalBriefingPages.clear();
+    int n = lua_gettop(L);
+    for (int i = 1; i <= n; ++i)
+    {
+        gameGlobalInfo->globalBriefingPages.push_back(luaL_checkstring(L, i));
+    }
+    return 0;
+}
+/// setBriefing("Page 1 str", "Page 2 str", ...)
+REGISTER_SCRIPT_FUNCTION(setBriefing);
+

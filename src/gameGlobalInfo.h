@@ -131,12 +131,17 @@ public:
     //When active, all comms request goto the GM as chat, and normal scripted converstations are disabled. This does not disallow player<->player ship comms.
     bool intercept_all_comms_to_gm; 
 
+    /// NB a place for briefings to live in
+    std::vector<std::string> globalBriefingPages;
+
     //Callback called when a new player ship is created on the ship selection screen.
     ScriptSimpleCallback on_new_player_ship;
     bool allow_new_player_ships = true;
     std::function<void(sf::Vector2f)> on_gm_click;
 
     MapLayer layer[max_map_layers];
+
+    bool scenario_started{false};
 
     GameGlobalInfo();
     virtual ~GameGlobalInfo();

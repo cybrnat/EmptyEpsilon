@@ -33,6 +33,8 @@ private:
     float missile_target_angle;
     P<PlayerSpaceship> target_spaceship;
     GuiPowerDamageIndicator* pdi;
+    //NB declaring lock label
+    GuiLabel* lock_label = nullptr;
 public:
     GuiMissileTubeControls(GuiContainer* owner, string id, P<PlayerSpaceship> targetSpaceship);
 

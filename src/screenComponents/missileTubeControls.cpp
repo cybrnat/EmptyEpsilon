@@ -43,9 +43,12 @@ GuiMissileTubeControls::GuiMissileTubeControls(GuiContainer* owner, string id, P
             if (target_spaceship->weapon_tube[n].isLoaded())
             {
                 float target_angle = missile_target_angle;
+                //NB look  bool
+                bool lock_successful = target_angle != std::numeric_limits<float>::infinity();
                 if (!manual_aim)
                 {
-                    target_angle = target_spaceship->weapon_tube[n].calculateFiringSolution(my_spaceship->getTarget(PreferencesManager::get("weapons_specific_station", "0").toInt()));
+                    //NB changed my_spaceship to target_spaceship so drones also target properly
+                    target_angle = target_spaceship->weapon_tube[n].calculateFiringSolution(target_spaceship->getTarget(PreferencesManager::get("weapons_specific_station", "0").toInt()));
                     if (target_angle == std::numeric_limits<float>::infinity())
                         target_angle = target_spaceship->getRotation() + target_spaceship->weapon_tube[n].getDirection();
                 }
@@ -84,6 +87,12 @@ GuiMissileTubeControls::GuiMissileTubeControls(GuiContainer* owner, string id, P
     load_type_rows[MW_EMP].button->setIcon("gui/icons/weapon-emp.png");
     load_type_rows[MW_Nuke].button->setIcon("gui/icons/weapon-nuke.png");
     load_type_rows[MW_HVLI].button->setIcon("gui/icons/weapon-hvli.png");
+    //NB lock label
+    lock_label = new GuiLabel(this, id + "_LOCK_LABEL", "LOCKED ON", 28);
+    lock_label->setAlignment(ATopCenter);
+    lock_label->setPosition(100, 0);
+    lock_label->setSize(50, 20);
+    lock_label->hide();
 }
 
 void GuiMissileTubeControls::setTargetSpaceship(P<PlayerSpaceship> targetSpaceship){
@@ -91,7 +100,10 @@ void GuiMissileTubeControls::setTargetSpaceship(P<PlayerSpaceship> targetSpacesh
     pdi->setTargetSpaceship(target_spaceship);
 }
 
-void GuiMissileTubeControls::onDraw(sf::RenderTarget& window){
+void GuiMissileTubeControls::onDraw(sf::RenderTarget& window)
+{
+    // NB more lock label structure
+    bool lock_successful = false;
     if (!target_spaceship)
         return;
     for (int n = 0; n < MW_Count; n++)
@@ -131,6 +143,12 @@ void GuiMissileTubeControls::onDraw(sf::RenderTarget& window){
             rows[n].fire_button->enable()->show();
             rows[n].fire_button->setText(tube.getTubeName() + ": " + getLocaleMissileWeaponName(tube.getLoadType()));
             rows[n].loading_bar->hide();
+            //NB apply lock label
+            float target_angle = target_spaceship->weapon_tube[n].calculateFiringSolution(
+                target_spaceship->getTarget(PreferencesManager::get("weapons_specific_station", "0").toInt()));
+                if (target_angle != std::numeric_limits<float>::infinity()) {
+                    lock_successful = true;
+                }
         }else if(tube.isLoading())
         {
             rows[n].load_button->disable();
@@ -158,11 +176,14 @@ void GuiMissileTubeControls::onDraw(sf::RenderTarget& window){
             rows[n].loading_bar->hide();
         }
 
-        if (my_spaceship->current_warp > 0.0)
+        //NB my_spaceship to target spaceship so drones can load missiles when player ship is in warp
+        if (target_spaceship->current_warp > 0.0)
         {
             rows[n].fire_button->disable();
         }
     }
+    //make lock label visible
+    lock_label->setVisible(lock_successful);
     if (!visible_tubes)
     {
         for (int n = 0; n < MW_Count; n++)
@@ -170,7 +191,6 @@ void GuiMissileTubeControls::onDraw(sf::RenderTarget& window){
     }
     for(int n=target_spaceship->weapon_tube_count; n<max_weapon_tubes; n++)
         rows[n].layout->hide();
-
     GuiAutoLayout::onDraw(window);
 }
 

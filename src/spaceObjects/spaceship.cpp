@@ -1068,6 +1068,10 @@ float SpaceShip::getShieldRechargeRate(int shield_index)
 
 P<SpaceObject> SpaceShip::getTarget(int station)
 {
+    // Ensure station is within bounds to prevent array access crashes
+    if (station < 0 || station >= max_target_id)
+        station = 0;
+    
     if (game_server)
         return game_server->getObjectById(target_id[station]);
     return game_client->getObjectById(target_id[station]);
@@ -1312,6 +1316,10 @@ void SpaceShip::hackFinished(P<SpaceObject> source, string target, float value)
             if (target == getSystemName(ESystem(n)))
             {
                 systems[n].hacked_level = std::min(1.0f, systems[n].hacked_level + value);
+                // NB apply heat to the hacker
+                PlayerSpaceship* hacker = dynamic_cast<PlayerSpaceship*>(*source);
+                    if (hacker)
+                    hacker->addHeat(SYS_Scanner, random(0.2f, 0.4f)); // or your chosen range
                 return;
             }
         }

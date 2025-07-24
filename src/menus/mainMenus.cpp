@@ -128,6 +128,8 @@ MainMenu::MainMenu()
 
     y += 10;
     (new GuiLabel(this, "CREDITS1", "Programming for Bridge Command:", 20))->setAlignment(ACenterRight)->setPosition(-50, y, ATopRight)->setSize(0, 20); y += 20;
+    //NB adding a credit
+    (new GuiLabel(this, "CREDITS3", "Owen Kingston", 18))->setAlignment(ACenterRight)->setPosition(-50, y, ATopRight)->setSize(0, 18); y += 18;   
     (new GuiLabel(this, "CREDITS3", "Sam Lee", 18))->setAlignment(ACenterRight)->setPosition(-50, y, ATopRight)->setSize(0, 18); y += 18;
     (new GuiLabel(this, "CREDITS4", "Stuart White", 18))->setAlignment(ACenterRight)->setPosition(-50, y, ATopRight)->setSize(0, 20); y += 20;
     (new GuiLabel(this, "CREDITS5", "Natalia Bogdanova", 18))->setAlignment(ACenterRight)->setPosition(-50, y, ATopRight)->setSize(0, 18); y += 18;
@@ -163,6 +165,8 @@ MainMenu::MainMenu()
     (new GuiLabel(this, "CREDITS25", "Mickael Houet", 18))->setAlignment(ACenterRight)->setPosition(-50, y, ATopRight)->setSize(0, 18); y += 18;
     (new GuiLabel(this, "CREDITS26", "Simon Morley", 18))->setAlignment(ACenterRight)->setPosition(-50, y, ATopRight)->setSize(0, 18); y += 18;
     (new GuiLabel(this, "CREDITS27", "Calum McLean", 18))->setAlignment(ACenterRight)->setPosition(-50, y, ATopRight)->setSize(0, 18); y += 18;
+    //NB adding a credit
+    (new GuiLabel(this, "CREDITS27", "Harry Jeffery", 18))->setAlignment(ACenterRight)->setPosition(-50, y, ATopRight)->setSize(0, 18); y += 18;
 
     if (PreferencesManager::get("instance_name") != "")
     {

@@ -192,7 +192,8 @@ set(SOURCES
 	src/screens/extra/droneOperatorScreen.cpp
 	src/screens/extra/dockMasterScreen.cpp
 	src/screens/extra/tractorBeamScreen.cpp
-        src/screens/extra/targetAnalysisScreen.cpp
+    src/screens/extra/targetAnalysisScreen.cpp
+	src/screens/extra/briefingScreen.cpp
 	src/screenComponents/aimLock.cpp
 	src/screenComponents/fireLock.cpp
 	src/screenComponents/alertOverlay.cpp
@@ -531,8 +532,8 @@ if(WIN32)
   install(DIRECTORY scripts DESTINATION .)
   install(DIRECTORY packs DESTINATION .)
   install(TARGETS ${EXECUTABLE_NAME} RUNTIME DESTINATION .)
-  # install(FILES hardware.ini DESTINATION .)
-  # install(FILES options.ini DESTINATION .)
+  install(FILES hardware.ini DESTINATION .)
+  install(FILES options.ini DESTINATION .)
 elseif(APPLE)
   install(FILES logo.icns DESTINATION "EmptyEpsilon.app/Contents/Resources" RENAME "${EXECUTABLE_NAME}.icns")
 
@@ -549,16 +550,16 @@ else()
   install(TARGETS ${EXECUTABLE_NAME} RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
 endif()
 
-find_package(PythonInterp)
-if(PYTHONINTERP_FOUND)
-   add_custom_command(
-         OUTPUT ${CMAKE_BINARY_DIR}/script_reference.html
-         COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/compile_script_docs.py ${CMAKE_BINARY_DIR}/script_reference.html
-         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-         COMMENT "Building script reference documentation.")
-   add_custom_target(script_reference ALL DEPENDS ${CMAKE_BINARY_DIR}/script_reference.html)
-   install(FILES ${CMAKE_BINARY_DIR}/script_reference.html DESTINATION .)
- endif()
+# find_package(PythonInterp)
+# if(PYTHONINTERP_FOUND)
+#    add_custom_command(
+#          OUTPUT ${CMAKE_BINARY_DIR}/script_reference.html
+#          COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/compile_script_docs.py ${CMAKE_BINARY_DIR}/script_reference.html
+#          WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+#          COMMENT "Building script reference documentation.")
+#    add_custom_target(script_reference ALL DEPENDS ${CMAKE_BINARY_DIR}/script_reference.html)
+#    install(FILES ${CMAKE_BINARY_DIR}/script_reference.html DESTINATION .)
+#  endif()
 
 add_custom_target(update_locale
 	COMMAND xgettext --keyword=tr:1c,2 --keyword=tr:1 --keyword=trMark:1c,2 --keyword=trMark:1 --omit-header -j -d resources/locale/en ${SOURCES}

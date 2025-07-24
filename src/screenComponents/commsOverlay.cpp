@@ -8,11 +8,14 @@
 #include "gui/gui2_scrolltext.h"
 #include "gui/gui2_listbox.h"
 #include "gui/gui2_textentry.h"
+// NB start of Harry's patch for comms
+#include "gui/gui2_canvas.h"
 
 #include "onScreenKeyboard.h"
 
 GuiCommsOverlay::GuiCommsOverlay(GuiContainer* owner)
-: GuiElement(owner, "COMMS_OVERLAY")
+//NB adding new variable
+: GuiElement(owner, "COMMS_OVERLAY"), chat_open_last_update(false)
 {
     // Panel for reporting outgoing hails.
     opening_box = new GuiPanel(owner, "COMMS_OPENING_BOX");
@@ -160,6 +163,17 @@ void GuiCommsOverlay::onDraw(sf::RenderTarget& window)
 
         broken_box->setVisible(my_spaceship->isCommsBroken());
         closed_box->setVisible(my_spaceship->isCommsClosed());
+// NB pulling in Harry's auto-focus
+       if (my_spaceship->isCommsChatOpen() && !chat_open_last_update)
+        {
+           // Chat window has just opened, let's auto-focus the text input
+            auto canvas = dynamic_cast<GuiCanvas*>(getTopLevelContainer());
+            if (canvas)
+            {
+                canvas->focus(chat_comms_message_entry);
+            }
+        }
+        chat_open_last_update = my_spaceship->isCommsChatOpen();
 
         chat_comms_box->setVisible(my_spaceship->isCommsChatOpen());
         chat_comms_text->setText(my_spaceship->getCommsIncommingMessage());

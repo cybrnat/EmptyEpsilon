@@ -34,6 +34,8 @@ enum ECrewPosition
     farRangeRadar,
     probeScreen,
     targetAnalysisScreen,
+    //NB added briefing screen to the enum
+    briefingScreen,
     max_crew_positions
 };
 
@@ -54,6 +56,7 @@ public:
     int32_t ship_id;
     string name;
     bool gm_access;
+    bool ui_spawn_pending = false;
 
     PlayerInfo();
 

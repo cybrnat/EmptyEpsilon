@@ -366,50 +366,38 @@ void fillDefaultDatabaseData()
         }
         entry->addKeyValue(tr("Hull"), string(int(ship_template->hull)));
 
-        if (ship_template->impulse_speed > 0.0)
-        {
-            entry->addKeyValue(tr("database", "Move speed"), string(ship_template->impulse_speed * 60 / 1000, 1) + " u/min");
-        }
-        if (ship_template->turn_speed > 0.0) {
-            entry->addKeyValue(tr("database", "Turn speed"), string(ship_template->turn_speed, 1) + " deg/sec");
-        }
-        if (ship_template->warp_speed > 0.0)
-        {
-            entry->addKeyValue(tr("database", "Warp speed"), string(ship_template->warp_speed * 60 / 1000, 1) + " u/min");
-        }
-        if (ship_template->has_jump_drive)
-        {
-            entry->addKeyValue(tr("database", "Jump range"), string(ship_template->jump_drive_min_distance / 1000, 0) + " - " + string(ship_template->jump_drive_max_distance / 1000, 0) + " u");
-        }
-        for(int n=0; n<max_beam_weapons; n++)
+        // NB commented out speed display
+        // if (ship_template->impulse_speed > 0.0)
+        // {
+        //     entry->addKeyValue(tr("database", "Move speed"), string(ship_template->impulse_speed * 60 / 1000, 1) + " u/min");
+        // }
+        // if (ship_template->turn_speed > 0.0) {
+        //     entry->addKeyValue(tr("database", "Turn speed"), string(ship_template->turn_speed, 1) + " deg/sec");
+        // }
+        // if (ship_template->warp_speed > 0.0)
+        // {
+        //     entry->addKeyValue(tr("database", "Warp speed"), string(ship_template->warp_speed * 60 / 1000, 1) + " u/min");
+        // }
+        // if (ship_template->has_jump_drive)
+        // {
+        //     entry->addKeyValue(tr("database", "Jump range"), string(ship_template->jump_drive_min_distance / 1000, 0) + " - " + string(ship_template->jump_drive_max_distance / 1000, 0) + " u");
+        // }
+
+        int beam_count = 0;
+        for (int n = 0; n < max_beam_weapons; n++)
         {
             if (ship_template->beams[n].getRange() > 0)
-            {
-                entry->addKeyValue(
-                    tr("{direction} beam weapon").format({{"direction", directionLabel(ship_template->beams[n].getDirection())}}),
-                    tr("database", "{damage} Dmg / {interval} sec").format({
-                        {"damage", string(ship_template->beams[n].getDamage(), 1)},
-                        {"interval", string(ship_template->beams[n].getCycleTime(), 1)}
-                    })
-                );
-            }
+            // NB display beam count instead of looping through and displaying individual beam stats   
+            beam_count++;
         }
-        for(int n=0; n<ship_template->weapon_tube_count; n++)
-        {
-            string key = tr("database", "{direction} tube");
-            if (ship_template->weapon_tube[n].size == MS_Small)
-            {
-                key = tr("database", "{direction} small tube");
-            }
-            if (ship_template->weapon_tube[n].size == MS_Large)
-            {
-                key = tr("database", "{direction} large tube");
-            }
-            entry->addKeyValue(
-                key.format({{"direction", directionLabel(ship_template->weapon_tube[n].direction)}}),
-                tr("database", "{loadtime} sec").format({{"loadtime", string(int(ship_template->weapon_tube[n].load_time))}})
-            );
-        }
+        if (beam_count > 0)
+            entry->addKeyValue(tr("database", "Beam weapons"), string(beam_count));
+
+            // NB display weapon tube count rather looping through and displaying individual tube stats
+        if (ship_template->weapon_tube_count > 0)
+        entry->addKeyValue(tr("database", "Missile tubes"), string(ship_template->weapon_tube_count));
+
+    
         for(int n=0; n < MW_Count; n++)
         {
             if (ship_template->weapon_storage[n] > 0)

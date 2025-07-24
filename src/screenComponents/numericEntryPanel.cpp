@@ -39,7 +39,7 @@ GuiControlNumericEntryPanel::GuiControlNumericEntryPanel(GuiCanvas* owner, strin
     (new GuiButton(code_entry, id + "_BUTTON_1", "1", [this]() {this->addDigit("1");}))->setSize(50, 50)->setPosition(50, 200, ATopLeft);
     (new GuiButton(code_entry, id + "_BUTTON_2", "2", [this]() {this->addDigit("2");}))->setSize(50, 50)->setPosition(100, 200, ATopLeft);
     (new GuiButton(code_entry, id + "_BUTTON_3", "3", [this]() {this->addDigit("3");}))->setSize(50, 50)->setPosition(150, 200, ATopLeft);
-    (new GuiButton(code_entry, id + "_BUTTON_Clr", "Clr", [this]() {this->clearDigits(true, true);}))->setSize(50, 50)->setPosition(50, 250, ATopLeft);
+    (new GuiButton(code_entry, id + "_BUTTON_Clr", "Clr", [this]() {this->clearDigits(true, false);}))->setSize(50, 50)->setPosition(50, 250, ATopLeft);
     (new GuiButton(code_entry, id + "_BUTTON_0", "0", [this]() {this->addDigit("0");}))->setSize(50, 50)->setPosition(100, 250, ATopLeft);
     (new GuiButton(code_entry, id + "_BUTTON_OK", "OK", [this]() {this->submitDigits();}))->setSize(50, 50)->setPosition(150, 250, ATopLeft);
     code_entry->setVisible(true);
@@ -191,6 +191,14 @@ bool GuiControlNumericEntryPanel::onKey(sf::Event::KeyEvent key, int unicode)
             case sf::Keyboard::Return:
                 playSound = false;
                 this->submitDigits();
+                break;
+            case sf::Keyboard::Escape:
+                playSound = false;
+                if (clear_func)
+                {
+                    func_t f = clear_func;
+                    f(0);
+                }
                 break;
             default:
                 playSound = false;

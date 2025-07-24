@@ -3,8 +3,10 @@
 
 #include "gui/gui2_canvas.h"
 #include "serverBrowseMenu.h"
+#include "screenComponents/numericEntryPanel.h"
 
 class GuiLabel;
+class GuiControlNumericEntryPanel;
 class GuiPanel;
 class GuiTextEntry;
 
@@ -14,6 +16,7 @@ class JoinServerScreen : public GuiCanvas, public Updatable
     GuiLabel* status_label;
     GuiPanel* password_entry_box;
     GuiTextEntry* password_entry;
+    GuiControlNumericEntryPanel* numeric_entry_panel;
     bool password_focused = false;
 
     ServerBrowserMenu::SearchSource source;

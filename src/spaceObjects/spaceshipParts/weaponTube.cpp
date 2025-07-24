@@ -149,9 +149,12 @@ void WeaponTube::spawnProjectile(float target_angle)
     sf::Vector2f fireLocation = parent->getPosition() + sf::rotateVector(parent->ship_template->model_data->getTubePosition2D(tube_index), parent->getRotation());
     
     int station_eff = station;
-    if (PreferencesManager::get("weapons_specific_station", "0").toInt() == 0)
-        station_eff = 0;
-        
+    // if (PreferencesManager::get("weapons_specific_station", "0").toInt() == 0)
+    //     station_eff = 0;
+    
+        //NB log line which should remain here in case missile targeting falls off a cliff again
+        // printf("Tube %d, station %d, station_eff %d, target_id %d\n", tube_index, station, station_eff, parent->target_id[station_eff]);
+    
     switch(type_loaded)
     {
     case MW_Homing:

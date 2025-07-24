@@ -3,6 +3,7 @@
 
 #include "playerInfo.h"
 #include "gui/gui2_canvas.h"
+#include "screenComponents/numericEntryPanel.h"
 
 class GuiAutoLayout;
 class GuiLabel;
@@ -46,6 +47,10 @@ private:
     GuiLabel* window_angle_label;
     GuiToggleButton* topdown_button;
     GuiToggleButton* cinematic_view_button;
+
+    bool pending_ready = false;
+
+    GuiControlNumericEntryPanel* control_code_numeric_panel = nullptr;
 
 public:
     ShipSelectionScreen();

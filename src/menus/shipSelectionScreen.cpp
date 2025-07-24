@@ -167,11 +167,52 @@ ShipSelectionScreen::ShipSelectionScreen()
             if (ship->control_code.length() > 0)
             {
                 LOG(INFO) << "Player selected " << ship->getCallSign() << ", which has a control code.";
-                // Hide the ship selection UI temporarily to deter sneaky ship thieves.
-                left_container->hide();
-                right_container->hide();
-                // Show the control code entry dialog.
-                password_overlay->show();
+                
+                // Check for numeric pad preference BEFORE showing any dialog
+                bool prefer_numeric = PreferencesManager::get("autoconnect_control_code_prefer_numeric_pad", "0").toInt() > 0;
+                bool is_numeric = !ship->control_code.empty() && std::all_of(ship->control_code.begin(), ship->control_code.end(), ::isdigit);
+                
+                if (prefer_numeric && is_numeric) {
+                    // Hide the ship selection UI temporarily to deter sneaky ship thieves.
+                    left_container->hide();
+                    right_container->hide();
+                    password_entry_box->hide();
+                    password_overlay->show();
+                    
+                    // Show numeric pad directly, no text entry dialog
+                    if (control_code_numeric_panel) { control_code_numeric_panel->destroy(); control_code_numeric_panel = nullptr; }
+                    control_code_numeric_panel = new GuiControlNumericEntryPanel(this, "CODE_ENTRY", tr("Enter this ship's control code"));
+                    control_code_numeric_panel->setPosition(0, 0, ACenter);
+                    control_code_numeric_panel->enterCallback([this, ship](int value) {
+                        if (ship->control_code.toInt() == value) {
+                            my_player_info->commandSetShipId(ship->getMultiplayerId());
+                            if (control_code_numeric_panel) { control_code_numeric_panel->destroy(); control_code_numeric_panel = nullptr; }
+                            password_entry_box->show();
+                            password_overlay->hide();
+                            left_container->show();
+                            right_container->show();
+                            pending_ready = true;
+                        } else {
+                            control_code_numeric_panel->setPrompt("Incorrect Control Code");
+                            control_code_numeric_panel->clearCode();
+                        }
+                    });
+                    control_code_numeric_panel->clearCallback([this, ship](int) {
+                        my_player_info->commandSetShipId(-1);
+                        player_ship_list->setSelectionIndex(-1);
+                        if (control_code_numeric_panel) { control_code_numeric_panel->destroy(); control_code_numeric_panel = nullptr; }
+                        password_entry_box->show();
+                        password_overlay->hide();
+                        left_container->show();
+                        right_container->show();
+                    });
+                } else {
+                    // Hide the ship selection UI temporarily to deter sneaky ship thieves.
+                    left_container->hide();
+                    right_container->hide();
+                    // Show the control code entry dialog.
+                    password_overlay->show();
+                }
             }
             // Otherwise, select and set this ship ID in the player info.
             else
@@ -284,6 +325,51 @@ ShipSelectionScreen::ShipSelectionScreen()
         string password = password_entry->getText().upper();
 
         if (spectator_button->getValue() == true || game_master_button->getValue() == true) {
+            string gm_control_code = gameGlobalInfo->gm_control_code;
+            
+            // Check for numeric pad preference for GM control codes too
+            bool prefer_numeric = PreferencesManager::get("autoconnect_control_code_prefer_numeric_pad", "0").toInt() > 0;
+            bool is_numeric = !gm_control_code.empty() && std::all_of(gm_control_code.begin(), gm_control_code.end(), ::isdigit);
+            
+            if (prefer_numeric && is_numeric) {
+                // Hide text entry, show numeric pad
+                password_entry->hide();
+                password_entry_ok->hide();
+                password_cancel->hide();
+                if (!control_code_numeric_panel) {
+                    control_code_numeric_panel = new GuiControlNumericEntryPanel(this, "CODE_ENTRY", tr("Enter the GM control code"));
+                    control_code_numeric_panel->setPosition(0, 100, ATopCenter)->setSize(600, 200);
+                    control_code_numeric_panel->enterCallback([this](int value) {
+                        if (gameGlobalInfo->gm_control_code.toInt() == value) {
+                            // Password matches.
+                            LOG(INFO) << "Password matches GM control code.";
+                            // Notify the player.
+                            my_player_info->gm_access = true;
+                            password_overlay->hide();
+                            left_container->show();
+                            right_container->show();
+                            if (control_code_numeric_panel) { control_code_numeric_panel->destroy(); control_code_numeric_panel = nullptr; }
+                        } else {
+                            control_code_numeric_panel->setPrompt("Incorrect GM Control Code");
+                            control_code_numeric_panel->clearCode();
+                        }
+                    });
+                    control_code_numeric_panel->clearCallback([this](int) {
+                        my_player_info->gm_access = false;
+                        spectator_button->setValue(false);
+                        game_master_button->setValue(false);
+                        password_overlay->hide();
+                        left_container->show();
+                        right_container->show();
+                        if (control_code_numeric_panel) { control_code_numeric_panel->destroy(); control_code_numeric_panel = nullptr; }
+                    });
+                }
+                control_code_numeric_panel->show();
+                return;
+            } else {
+                LOG(INFO) << "Using text entry for GM control code (prefer_numeric=" << prefer_numeric << ", is_numeric=" << is_numeric << ")";
+            }
+            
             if (password != gameGlobalInfo->gm_control_code)
             {
                 LOG(INFO) << "Password doesn't match GM control code. Attempt: " << password;
@@ -307,13 +393,15 @@ ShipSelectionScreen::ShipSelectionScreen()
             string control_code = ship->control_code;
             password_label->setText(tr("Enter this ship's control code:"));
 
+            // This path is only for text entry now - numeric pad is handled at selection level
+
             if (password != control_code)
             {
                 // Password doesn't match. Unset the player ship selection.
                 LOG(INFO) << "Password doesn't match control code. Attempt: " << password;
                 my_player_info->commandSetShipId(-1);
                 // Notify the player.
-                password_label->setText(tr("Incorrect control code. Re-enter code for {ship_callsign}:").format({{"ship_callsign", ship->getCallSign()}}));
+                password_label->setText(tr("Incorrect control code. Re-enter code for {ship_callsign}:" ).format({{"ship_callsign", ship->getCallSign()}}));
                 // Reset the dialog.
                 password_entry->setText("");
             } else {
@@ -321,15 +409,11 @@ ShipSelectionScreen::ShipSelectionScreen()
                 LOG(INFO) << "Password matches control code.";
                 // Set the player ship.
                 my_player_info->commandSetShipId(ship->getMultiplayerId());
-                // Notify the player.
-                password_label->setText(tr("Control code accepted.\nGranting access to {ship_callsign}.").format({{"ship_callsign", ship->getCallSign()}}));
-                // Reset and hide the password field.
-                password_entry->setText("");
-                password_entry->hide();
-                password_cancel->hide();
-                password_entry_ok->hide();
-                // Show a confirmation button.
-                password_confirmation->show();
+                // Immediately proceed as if Ready was pressed
+                password_overlay->hide();
+                left_container->show();
+                right_container->show();
+                pending_ready = true;
             }
         }
     });
@@ -354,6 +438,22 @@ ShipSelectionScreen::ShipSelectionScreen()
 
 void ShipSelectionScreen::update(float delta)
 {
+    if (pending_ready) {
+        // Check for at least one selected crew position
+        bool has_station = false;
+        for (int n = 0; n < max_crew_positions; n++) {
+            if (my_player_info->crew_position[n]) {
+                has_station = true;
+                break;
+            }
+        }
+        if (my_spaceship && my_spaceship->getHull() > 0 && has_station) {
+            pending_ready = false;
+            this->onReadyClick();
+        }
+        // else: wait until a station is selected
+    }
+
     // If this is a client and is disconnected from the server, destroy the
     // screen and return to the main menu.
     if (game_client && game_client->getStatus() == GameClient::Disconnected)
@@ -536,6 +636,7 @@ void ShipSelectionScreen::updateCrewTypeOptions()
         crew_position_button[farRangeRadar]->show();
         crew_position_button[probeScreen]->show();
         crew_position_button[targetAnalysisScreen]->show();
+        crew_position_button[briefingScreen]->show();
         break;
     case 4:
         main_screen_button->hide();

@@ -28,6 +28,8 @@
 #include "screens/extra/radarScreen.h"
 #include "screens/extra/probeScreen.h"
 #include "screens/extra/targetAnalysisScreen.h"
+//include new briefing screen
+#include "screens/extra/briefingScreen.h"
 
 #include "screenComponents/mainScreenControls.h"
 #include "screenComponents/selfDestructEntry.h"
@@ -219,6 +221,12 @@ void PlayerInfo::spawnUI()
         if (crew_position[targetAnalysisScreen])
             screen->addStationTab(new TargetAnalysisScreen(container), targetAnalysisScreen, getCrewPositionName(targetAnalysisScreen), getCrewPositionIcon(targetAnalysisScreen));
 
+            // NB briefing screen loader
+        std::cout << "creating briefing screen" << std::endl;
+        if (crew_position[briefingScreen])
+            screen->addStationTab(new BriefingScreen(container), briefingScreen, getCrewPositionName(briefingScreen), getCrewPositionIcon(briefingScreen));
+        std::cout << "finished creating briefing screen" << std::endl;
+
         GuiSelfDestructEntry* sde = new GuiSelfDestructEntry(container, "SELF_DESTRUCT_ENTRY");
         for(int n=0; n<max_crew_positions; n++)
             if (crew_position[n])
@@ -274,6 +282,8 @@ string getCrewPositionName(ECrewPosition position)
     case farRangeRadar: return tr("station","Far Range Radar");
     case probeScreen: return tr("station","Probe Screen");
     case targetAnalysisScreen: return tr("station","Target Analysis Screen");
+    //NB briefing screen station name
+    case briefingScreen: return tr("station", "Mission Brief");
     default: return "ErrUnk: " + string(position);
     }
 }
@@ -307,6 +317,8 @@ string getCrewPositionIcon(ECrewPosition position)
     case farRangeRadar: return "";
     case probeScreen: return "";
     case targetAnalysisScreen: return "";
+    // NB briefing screen logo (empty)
+    case briefingScreen: return "";
     default: return "ErrUnk: " + string(position);
     }
 }
@@ -373,6 +385,9 @@ template<> void convert<ECrewPosition>::param(lua_State* L, int& idx, ECrewPosit
         cp = probeScreen;
     else if (str == "targetanalysis" || str == "analysis" || str == "targetanalysisscreen")
         cp = targetAnalysisScreen;
+        // NB briefing screen lua name
+    else if (str == "briefingscreen" || str == "briefing" || str == "missionbrief")
+        cp = briefingScreen;
     else
         luaL_error(L, "Unknown value for crew position: %s", str.c_str());
 }
