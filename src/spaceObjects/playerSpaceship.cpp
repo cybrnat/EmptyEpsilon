@@ -28,6 +28,7 @@ REGISTER_SCRIPT_SUBCLASS(PlayerSpaceship, SpaceShip)
     /// Move all players connected to this ship to the same stations on a
     /// different PlayerSpaceship. If the target isn't a PlayerSpaceship, this
     /// function does nothing.
+
     /// This can be used in scenarios to change the crew's ship.
     REGISTER_SCRIPT_CLASS_FUNCTION(PlayerSpaceship, transferPlayersToShip);
     /// Transfers only the crew members who fill a specific station to another
@@ -39,7 +40,7 @@ REGISTER_SCRIPT_SUBCLASS(PlayerSpaceship, SpaceShip)
     REGISTER_SCRIPT_CLASS_FUNCTION(PlayerSpaceship, setTexture);
     /// Set background textures color for the player
     REGISTER_SCRIPT_CLASS_FUNCTION(PlayerSpaceship, setTextureColor);
-
+    REGISTER_SCRIPT_CLASS_FUNCTION(PlayerSpaceship, clearShipLogs);
     // Comms functions return Boolean values if true.
     REGISTER_SCRIPT_CLASS_FUNCTION(PlayerSpaceship, isCommsInactive);
     REGISTER_SCRIPT_CLASS_FUNCTION(PlayerSpaceship, isCommsOpening);
@@ -1282,6 +1283,12 @@ std::vector<PlayerSpaceship::ShipLogEntry>& PlayerSpaceship::getShipsLog(ECrewPo
     return sub_log;
 }
 
+void PlayerSpaceship::clearShipLogs()
+{
+    ships_log.clear();
+    sub_log.clear();
+}
+
 void PlayerSpaceship::transferPlayersToShip(P<PlayerSpaceship> other_ship)
 {
     // Don't do anything without a valid target. The target must be a
@@ -1548,7 +1555,7 @@ void PlayerSpaceship::onReceiveClientCommand(int32_t client_id, sf::Packet& pack
                 warp_frequency = 0;
             if (warp_frequency > 10)
                 warp_frequency = 10;
-            addToShipLog(tr("New warp frequency: {frequency}").format({{"frequency", frequencyToString(new_frequency)}}),sf::Color::Yellow,helmsOfficer);
+            addToShipLog(tr("New warp frequency: {frequency}").format({{"frequency", frequencyToString(new_frequency)}}),sf::Color::Cyan,helmsOfficer);
 
 
         }
@@ -1600,7 +1607,7 @@ void PlayerSpaceship::onReceiveClientCommand(int32_t client_id, sf::Packet& pack
             if (tube_nr >= 0 && tube_nr < max_weapon_tubes)
             {
                 weapon_tube[tube_nr].fire(missile_target_angle);
-                addToShipLog(tr("Missile fire"),sf::Color::Yellow,engineering);
+                addToShipLog(tr("Missile fire"),sf::Color::Yellow,weaponsOfficer);
             }
         }
         break;
@@ -1615,12 +1622,12 @@ void PlayerSpaceship::onReceiveClientCommand(int32_t client_id, sf::Packet& pack
                 if (active)
                 {
                     playSoundOnMainScreen("shield_up.wav");
-                    addToShipLog(tr("Shields up"),sf::Color::Green,engineering);
+                    addToShipLog(tr("Shields up"),sf::Color::Yellow,weaponsOfficer);
                 }
                 else
                 {
                     playSoundOnMainScreen("shield_down.wav");
-                    addToShipLog(tr("Shields down"),sf::Color::Green,engineering);
+                    addToShipLog(tr("Shields down"),sf::Color::Yellow,weaponsOfficer);
                 }
             }
         }
@@ -1634,9 +1641,9 @@ void PlayerSpaceship::onReceiveClientCommand(int32_t client_id, sf::Packet& pack
             {
                 lock_fire = active;
                 if (active)
-                    addToShipLog(tr("Fire up"),sf::Color::Green,engineering);
+                    addToShipLog(tr("Fire up"),sf::Color::Yellow,weaponsOfficer);
                 else
-                    addToShipLog(tr("Fire down"),sf::Color::Green,engineering);
+                    addToShipLog(tr("Fire down"),sf::Color::Yellow,weaponsOfficer);
             }
         }
         break;     
@@ -1741,19 +1748,19 @@ void PlayerSpaceship::onReceiveClientCommand(int32_t client_id, sf::Packet& pack
             int32_t id;
             packet >> id;
             requestDock(game_server->getObjectById(id));
-            addToShipLog(tr("Docking requested"),sf::Color::Cyan,engineering);
+            addToShipLog(tr("Docking requested"),sf::Color::Cyan,helmsOfficer);
         }
         break;
     case CMD_UNDOCK:
         {
             requestUndock();
-            addToShipLog(tr("Undocking requested"),sf::Color::Cyan,engineering);
+            addToShipLog(tr("Undocking requested"),sf::Color::Cyan,helmsOfficer);
         }
         break;
     case CMD_ABORT_DOCK:
         {
             abortDock();
-            addToShipLog(tr("Docking aborted"),sf::Color::Cyan,engineering);
+            addToShipLog(tr("Docking aborted"),sf::Color::Cyan,helmsOfficer);
         }
         break;
     case CMD_OPEN_TEXT_COMM:

@@ -411,6 +411,7 @@ public:
     void addToShipLog(string message, sf::Color color, ECrewPosition position = relayOfficer);
     void addToShipLogBy(string message, P<SpaceObject> target);
     std::vector<ShipLogEntry>& getShipsLog(ECrewPosition position);
+    void clearShipLogs();
 
     // Ship's crew functions
     void transferPlayersToShip(P<PlayerSpaceship> other_ship);
