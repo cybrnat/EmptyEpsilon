@@ -9,6 +9,7 @@
 /// Nebulae block long-range radar in a 5U range.
 REGISTER_SCRIPT_SUBCLASS(Nebula, SpaceObject)
 {
+    REGISTER_SCRIPT_CLASS_FUNCTION(Nebula, setEffectRadius);
 }
 
 PVector<Nebula> Nebula::nebula_list;
@@ -28,14 +29,30 @@ Nebula::Nebula()
 
     for(int n=0; n<cloud_count; n++)
     {
-        clouds[n].size = random(512, 1024 * 2);
+        clouds[n].size = random(512, 1024 * 4);
         clouds[n].texture = irandom(1, 3);
         float dist_min = clouds[n].size / 2.0f;
-        float dist_max = getRadius() - clouds[n].size;
+        float dist_max = getEffectRadius() * 0.7f  - clouds[n].size;
         clouds[n].offset = sf::vector2FromAngle(float(n * 360 / cloud_count)) * random(dist_min, dist_max);
     }
 
     nebula_list.push_back(this);
+}
+
+P<Nebula> Nebula::setEffectRadius(float r)
+{
+        r = std::max(0.0f, r);
+    if (effect_radius > 1e-3f && r > 1e-3f)
+    {
+        float s = r / effect_radius;
+        for (int n = 0; n < cloud_count; ++n)
+        {
+            clouds[n].offset *= s; 
+            clouds[n].size   *= s; 
+        }
+    }
+    effect_radius = r;
+    return this;
 }
 
 #if FEATURE_3D_RENDERING
@@ -49,9 +66,13 @@ void Nebula::draw3DTransparent()
 
         sf::Vector3f position = sf::Vector3f(getPosition().x, getPosition().y, 0) + sf::Vector3f(cloud.offset.x, cloud.offset.y, 0);
         float size = cloud.size;
-
         float distance = sf::length(camera_position - position);
         float alpha = 1.0 - (distance / 10000.0f);
+        float density = 0.8f;         
+        float r = getEffectRadius();  
+        if (r > 10000.0f) density = 1.5f;
+        if (r > 30000.0f) density = 1.8f;   
+        alpha *= density;
         if (alpha < 0.0)
             continue;
 
@@ -78,7 +99,7 @@ void Nebula::drawOnRadar(sf::RenderTarget& window, sf::Vector2f position, float 
     textureManager.setTexture(object_sprite, "Nebula" + string(radar_visual) + ".png");
     object_sprite.setRotation(getRotation()-rotation);
     object_sprite.setPosition(position);
-    float size = getRadius() * scale / object_sprite.getTextureRect().width * 3.0;
+    float size = getEffectRadius() * scale / object_sprite.getTextureRect().width * 3.0;
     object_sprite.setScale(size, size);
     object_sprite.setColor(sf::Color(255, 255, 255));
     window.draw(object_sprite, sf::BlendAdd);
@@ -86,8 +107,8 @@ void Nebula::drawOnRadar(sf::RenderTarget& window, sf::Vector2f position, float 
 
 void Nebula::drawOnGMRadar(sf::RenderTarget& window, sf::Vector2f position, float scale, float rotation, bool long_range)
 {
-    sf::CircleShape range_circle(getRadius() * scale);
-    range_circle.setOrigin(getRadius() * scale, getRadius() * scale);
+    sf::CircleShape range_circle(getEffectRadius() * scale);
+    range_circle.setOrigin(getEffectRadius() * scale, getEffectRadius() * scale);
     range_circle.setPosition(position);
     range_circle.setFillColor(sf::Color::Transparent);
     range_circle.setOutlineColor(sf::Color(255, 255, 255, 64));
@@ -99,7 +120,7 @@ bool Nebula::inNebula(sf::Vector2f position)
 {
     foreach(Nebula, n, nebula_list)
     {
-        if ((n->getPosition() - position) < n->getRadius())
+        if ((n->getPosition() - position) < n->getEffectRadius())
             return true;
     }
     return false;
@@ -109,8 +130,8 @@ bool Nebula::blockedByNebula(sf::Vector2f start, sf::Vector2f end)
 {
     sf::Vector2f startEndDiff = end - start;
     float startEndLength = sf::length(startEndDiff);
-    if (startEndLength < 5000.0f)
-        return false;
+    // if (startEndLength < 5000.0f)
+    //     return false;
 
     foreach(Nebula, n, nebula_list)
     {
@@ -121,7 +142,7 @@ bool Nebula::blockedByNebula(sf::Vector2f start, sf::Vector2f end)
         if (f > startEndLength)
             f = startEndLength;
         sf::Vector2f q = start + startEndDiff / startEndLength * f;
-        if ((q - n->getPosition()) < n->getRadius())
+        if ((q - n->getPosition()) < n->getEffectRadius())
         {
             return true;
         }
@@ -142,7 +163,7 @@ sf::Vector2f Nebula::getFirstBlockedPosition(sf::Vector2f start, sf::Vector2f en
         if (f < 0.0)
             f = 0;
         sf::Vector2f q = start + startEndDiff / startEndLength * f;
-        if ((q - n->getPosition()) < n->getRadius())
+        if ((q - n->getPosition()) < n->getEffectRadius())
         {
             if (!first_nebula || f < first_nebula_f)
             {
@@ -156,7 +177,7 @@ sf::Vector2f Nebula::getFirstBlockedPosition(sf::Vector2f start, sf::Vector2f en
         return end;
 
     float d = sf::length(first_nebula_q - first_nebula->getPosition());
-    return first_nebula_q + sf::normalize(start - end) * sqrtf(first_nebula->getRadius() * first_nebula->getRadius() - d * d);
+    return first_nebula_q + sf::normalize(start - end) * sqrtf(first_nebula->getEffectRadius() * first_nebula->getEffectRadius() - d * d);
 }
 
 PVector<Nebula> Nebula::getNebulas()
