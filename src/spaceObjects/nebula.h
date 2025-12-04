@@ -23,6 +23,8 @@ public:
     Nebula();
     P<Nebula> setEffectRadius(float r);
     float getEffectRadius() const { return effect_radius; }
+    P<Nebula> setTexture(string texture_name);
+    std::string custom_texture;
 
 #if FEATURE_3D_RENDERING
     virtual void draw3DTransparent();

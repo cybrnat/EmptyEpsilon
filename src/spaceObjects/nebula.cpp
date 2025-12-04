@@ -10,13 +10,14 @@
 REGISTER_SCRIPT_SUBCLASS(Nebula, SpaceObject)
 {
     REGISTER_SCRIPT_CLASS_FUNCTION(Nebula, setEffectRadius);
+    REGISTER_SCRIPT_CLASS_FUNCTION(Nebula, setTexture); 
 }
 
 PVector<Nebula> Nebula::nebula_list;
 
 REGISTER_MULTIPLAYER_CLASS(Nebula, "Nebula")
 Nebula::Nebula()
-: SpaceObject(5000, "Nebula")
+: SpaceObject(5000, "Nebula"), custom_texture("") 
 {
     // Nebulae need a large radius to render properly from a distance, but
     // collision isn't important, so set the collision radius to a tiny range.
@@ -55,6 +56,12 @@ P<Nebula> Nebula::setEffectRadius(float r)
     return this;
 }
 
+P<Nebula> Nebula::setTexture(string texture_name)
+{
+    custom_texture = texture_name;
+    return this;
+}
+
 #if FEATURE_3D_RENDERING
 void Nebula::draw3DTransparent()
 {
@@ -72,12 +79,32 @@ void Nebula::draw3DTransparent()
         float r = getEffectRadius();  
         if (r > 10000.0f) density = 1.5f;
         if (r > 30000.0f) density = 1.8f;   
+        if (r > 50000.0f) density = 2.5f;   
         alpha *= density;
         if (alpha < 0.0)
             continue;
 
-        ShaderManager::getShader("billboardShader")->setUniform("textureMap", *textureManager.getTexture("Nebula" + string(cloud.texture) + ".png"));
+        string tex;
+        if (!custom_texture.empty())
+        {
+            tex = custom_texture;
+        }
+        else
+        {
+            tex = "Nebula" + string(cloud.texture) + ".png";
+        }
+
+        ShaderManager::getShader("billboardShader")->setUniform(
+            "textureMap",
+            *textureManager.getTexture(tex)
+        );
         sf::Shader::bind(ShaderManager::getShader("billboardShader"));
+
+        // ShaderManager::getShader("billboardShader")->setUniform(
+        //     "textureMap",
+        //     *textureManager.getTexture("Nebula" + string(cloud.texture) + ".png")
+        // );
+        
         glBegin(GL_QUADS);
         glColor4f(alpha * 0.8, alpha * 0.8, alpha * 0.8, size);
         glTexCoord2f(0, 0);
@@ -96,7 +123,16 @@ void Nebula::draw3DTransparent()
 void Nebula::drawOnRadar(sf::RenderTarget& window, sf::Vector2f position, float scale, float rotation, bool long_range)
 {
     sf::Sprite object_sprite;
-    textureManager.setTexture(object_sprite, "Nebula" + string(radar_visual) + ".png");
+    string tex;
+    if (!custom_texture.empty())
+    {
+        tex = custom_texture;
+    }
+    else
+    {
+        tex = "Nebula" + string(radar_visual) + ".png";
+    }
+    textureManager.setTexture(object_sprite, tex);
     object_sprite.setRotation(getRotation()-rotation);
     object_sprite.setPosition(position);
     float size = getEffectRadius() * scale / object_sprite.getTextureRect().width * 3.0;
