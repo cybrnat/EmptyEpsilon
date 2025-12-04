@@ -25,10 +25,13 @@ REGISTER_SCRIPT_SUBCLASS(PlayerSpaceship, SpaceShip)
     /// Adds a message to the ship's log. Takes a string as the message and a
     /// sf::Color.
     REGISTER_SCRIPT_CLASS_FUNCTION(PlayerSpaceship, addToShipLog);
+    /// adds a local message on radars and main screen. Take two parameters: message (str) and time (in seconds)
+    // eg. player:localMessage("Game over", 12)
+    // time can be ommited; defaults to 10 seconds
+    REGISTER_SCRIPT_CLASS_FUNCTION(PlayerSpaceship, localMessage);
     /// Move all players connected to this ship to the same stations on a
     /// different PlayerSpaceship. If the target isn't a PlayerSpaceship, this
     /// function does nothing.
-
     /// This can be used in scenarios to change the crew's ship.
     REGISTER_SCRIPT_CLASS_FUNCTION(PlayerSpaceship, transferPlayersToShip);
     /// Transfers only the crew members who fill a specific station to another
@@ -349,6 +352,9 @@ PlayerSpaceship::PlayerSpaceship()
 : SpaceShip("PlayerSpaceship", 5000)
 {
     // Initialize ship settings
+    local_message = "";
+    local_message_timeout = 0.0f;
+
     main_screen_setting = MSS_Front;
     main_screen_overlay = MSO_HideComms;
     texture_front = "StarsFront";
@@ -400,6 +406,8 @@ PlayerSpaceship::PlayerSpaceship()
         setScannedStateForFaction(faction_id, SS_FullScan);
 
     updateMemberReplicationUpdateDelay(&target_rotation, 0.1);
+    registerMemberReplication(&local_message);
+    registerMemberReplication(&local_message_timeout);
     registerMemberReplication(&can_scan);
     registerMemberReplication(&can_hack);
     registerMemberReplication(&can_dock);
@@ -553,6 +561,18 @@ void PlayerSpaceship::update(float delta)
     // If we're jumping, tick the countdown timer.
     if (jump_indicator > 0)
         jump_indicator -= delta;
+
+    // local message timeout
+        if (local_message_timeout > 0.0f)
+    {
+        local_message_timeout -= delta;
+        if (local_message_timeout <= 0.0f)
+        {
+            local_message_timeout = 0.0f;
+            local_message.clear();
+        }
+    }
+
 
     // If shields are calibrating, tick the calibration delay. Factor shield
     // subsystem effectiveness when determining the tick rate.
@@ -1555,7 +1575,7 @@ void PlayerSpaceship::onReceiveClientCommand(int32_t client_id, sf::Packet& pack
                 warp_frequency = 0;
             if (warp_frequency > 10)
                 warp_frequency = 10;
-            addToShipLog(tr("New warp frequency: {frequency}").format({{"frequency", frequencyToString(new_frequency)}}),sf::Color::Cyan,helmsOfficer);
+            addToShipLog(tr("New warp frequency: {frequency}").format({{"frequency", frequencyToString(new_frequency)}}),sf::Color::Yellow,helmsOfficer);
 
 
         }
@@ -2727,6 +2747,20 @@ string PlayerSpaceship::getExportLine()
 void PlayerSpaceship::onProbeLaunch(ScriptSimpleCallback callback)
 {
     this->on_probe_launch = callback;
+
+}
+void PlayerSpaceship::localMessage(string msg, float timeout)
+{
+    if (msg.empty())
+    {
+        local_message.clear();
+        local_message_timeout = 0.0f;
+    }
+    else
+    {
+        local_message = msg;
+        local_message_timeout = (timeout > 0.0f ? timeout : 10.0f);
+    }
 }
 
 #ifndef _MSC_VER

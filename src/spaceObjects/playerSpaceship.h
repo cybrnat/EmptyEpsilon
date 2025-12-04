@@ -74,7 +74,7 @@ public:
     float scanning_noise = 0.0f;
 
     constexpr static int16_t CMD_PLAY_CLIENT_SOUND = 0x0001;
-
+    
     // Content of a line in the ship's log
     class ShipLogEntry
     {
@@ -442,6 +442,10 @@ public:
 
     // Script export function
     virtual string getExportLine() override;
+    string local_message;
+    float  local_message_timeout = 0.0f;
+
+    void localMessage(string msg, float timeout = 10.0f);
 };
 REGISTER_MULTIPLAYER_ENUM(ECommsState);
 template<> int convert<EAlertLevel>::returnType(lua_State* L, EAlertLevel l);

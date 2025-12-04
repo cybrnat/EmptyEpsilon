@@ -15,6 +15,8 @@
 #include "gui/gui2_togglebutton.h"
 #include "gui/gui2_button.h"
 #include "gui/gui2_progressbar.h"
+#include "gui/gui2_advancedscrolltext.h"
+#include "scienceDatabase.h"
 
 GuiObjectTweak::GuiObjectTweak(GuiContainer* owner, ETweakType tweak_type)
 : GuiPanel(owner, "GM_TWEAK_DIALOG")
@@ -78,6 +80,8 @@ GuiObjectTweak::GuiObjectTweak(GuiContainer* owner, ETweakType tweak_type)
         list->addEntry(tr("tab", "Player 2"), "");
         pages.push_back(new GuiShipTweakMessages(this));
         list->addEntry(tr("tab", "Messages"), "");
+        pages.push_back(new GuiShipTweakRelayLogs(this));
+        list->addEntry(tr("tab", "Relay logs"), "");
     }
 
     for(GuiTweakPage* page : pages)
@@ -1175,8 +1179,10 @@ GuiShipTweakMessages::GuiShipTweakMessages(GuiContainer* owner)
     
     // Choose the target
     (new GuiLabel(this, "", tr("message", "Target:"), 30))->setSize(100, 40)->setPosition(50, 130, ATopLeft);
-    GuiSelector* target_selector = new GuiSelector(this, "", [this](int index, string value)
+        GuiSelector* target_selector = new GuiSelector(this, "", [this](int index, string value)
     {
+        if (send_local_button)
+            send_local_button->setEnable(value != "all players");
     });
     target_selector->setSize(300, 40)->setPosition(200, 130, ATopLeft);
     target_selector->addEntry(tr("message", "this player"), "this player");
@@ -1287,7 +1293,84 @@ GuiShipTweakMessages::GuiShipTweakMessages(GuiContainer* owner)
                 target->removeCustom(getCrewPositionName(ECrewPosition(n)) + "_message");
         }
     }))->setSize(GuiElement::GuiSizeMax, 40);
+    // new TO DATABASE
+    (new GuiLabel(left_col, "", "", 20))
+    ->setSize(GuiElement::GuiSizeMax, 40);
+    (new GuiLabel(left_col, "DB_LABEL", tr("message", "To database"), 30))
+        ->setSize(GuiElement::GuiSizeMax, 40);
 
+    (new GuiLabel(left_col, "DB_TITLE_LABEL", tr("message", "Entry title:"), 20))
+        ->setSize(GuiElement::GuiSizeMax, 30);
+
+    // Title entry
+    db_title_entry = new GuiTextEntry(left_col, "DB_TITLE_ENTRY", "");
+    db_title_entry->setSize(GuiElement::GuiSizeMax, 40);
+
+    send_to_db_button = new GuiButton(
+        left_col,
+        "DB_SEND",
+        tr("message", "Send to database"),
+        std::bind(&GuiShipTweakMessages::onSendToDatabase, this)
+    );
+    send_to_db_button->setSize(GuiElement::GuiSizeMax, 40);
+    send_to_db_button->setEnable(false);
+
+    db_title_entry->callback([this](string text) {
+        send_to_db_button->setEnable(text.length() > 0);
+    });
+
+    // to Main screen, i.e. as global message but per ship
+    // (per player only)
+    (new GuiLabel(right_col, "", "", 20))
+    ->setSize(GuiElement::GuiSizeMax, 40);
+    (new GuiLabel(right_col, "", tr("message", "To main screen"), 30))
+        ->setSize(GuiElement::GuiSizeMax, 40);
+
+        send_local_button = new GuiButton(
+        right_col,
+        "SEND_LOCAL_MESSAGE",
+        tr("message", "Send message"),
+        [this]() {
+            P<PlayerSpaceship> ship = target;
+            if (!ship || message.empty())
+                return;
+            ship->localMessage(message);
+        }
+    );
+    send_local_button->setSize(GuiElement::GuiSizeMax, 40);
+    send_local_button->setEnable(true); 
+}
+
+void GuiShipTweakMessages::onSendToDatabase()
+{
+    if (!target)
+        return;
+
+    string title = db_title_entry->getText();
+    if (title.empty())
+        return;
+
+    if (message.empty())
+        return;
+
+    P<ScienceDatabase> root = ScienceDatabase::queryScienceDatabase("Additional Information", 0);
+    if (!root)
+    {
+        root = new ScienceDatabase();
+        root->setName("Additional Information");
+    }
+    P<ScienceDatabase> entry = ScienceDatabase::queryScienceDatabase(title, root->getId());
+    if (!entry)
+        entry = root->addEntry(title);
+
+    string old_text = entry->getLongDescription();
+    if (!old_text.empty())
+        old_text += "\n\n";
+
+    old_text += message;
+    entry->setLongDescription(old_text);
+    db_title_entry->setText("");
+    send_to_db_button->setEnable(false);
 }
 
 void GuiShipTweakMessages::onDraw(sf::RenderTarget& window)
@@ -1302,6 +1385,129 @@ void GuiShipTweakMessages::open(P<SpaceObject> target)
 
     if (player)
     {
+    }
+}
+
+GuiShipTweakRelayLogs::GuiShipTweakRelayLogs(GuiContainer* owner): GuiTweakPage(owner), ship_selector(nullptr), log_text(nullptr), initialized(false), current_index(-1)
+{
+    GuiButton* send_local_button = nullptr;
+    (new GuiLabel(this, "", tr("ship"), 30))
+        ->setPosition(50, 25, ATopLeft)
+        ->setSize(600, 40);
+    ship_selector = new GuiSelector(this, "RELAY_SHIP_SELECTOR",
+        [this](int index, string)
+    {
+        current_index = index;
+        if (log_text)
+            log_text->clearEntries();
+    });
+    ship_selector->setPosition(50, 65, ATopLeft);
+    ship_selector->setSize(600, 40);
+    log_text = new GuiAdvancedScrollText(this, "RELAY_SHIP_LOG");
+    log_text->enableAutoScrollDown();
+    log_text->setPosition(50, 155, ATopLeft);
+    log_text->setSize(GuiElement::GuiSizeMax, GuiElement::GuiSizeMax);
+}
+
+void GuiShipTweakRelayLogs::open(P<SpaceObject> target)
+{
+    if (!initialized)
+    {
+        ship_slots.clear();
+        for (int n = 0; n < GameGlobalInfo::max_player_ships; ++n)
+        {
+            P<PlayerSpaceship> ship = gameGlobalInfo->getPlayerShip(n);
+            if (!ship)
+                continue;
+
+            ship_slots.push_back(n);
+
+            string label = ship->callsign;
+            if (label.empty())
+                label = tr("Player ship {id}").format({{"id", string(n + 1)}});
+
+            ship_selector->addEntry(label, "");
+        }
+
+        initialized = true;
+    }
+
+    int default_index = -1;
+    P<PlayerSpaceship> target_player = target;
+    if (target_player)
+    {
+        for (int i = 0; i < int(ship_slots.size()); ++i)
+        {
+            int slot = ship_slots[i];
+            if (gameGlobalInfo->getPlayerShip(slot) == target_player)
+            {
+                default_index = i;
+                break;
+            }
+        }
+    }
+
+    if (default_index < 0 && !ship_slots.empty())
+        default_index = 0;
+
+    if (default_index >= 0 && default_index < int(ship_slots.size()))
+    {
+        ship_selector->setSelectionIndex(default_index);
+        current_index = default_index;
+        if (log_text)
+            log_text->clearEntries();
+    }
+}
+
+void GuiShipTweakRelayLogs::onDraw(sf::RenderTarget& window)
+{
+    if (!log_text)
+        return;
+
+    if (current_index < 0 || current_index >= int(ship_slots.size()))
+        return;
+
+    int slot = ship_slots[current_index];
+    P<PlayerSpaceship> ship = gameGlobalInfo->getPlayerShip(slot);
+    if (!ship)
+        return;
+
+    std::vector<PlayerSpaceship::ShipLogEntry>& logs =
+        ship->getShipsLog(relayOfficer);
+    if (log_text->getEntryCount() > 0 && logs.size() == 0)
+        log_text->clearEntries();
+
+    while (log_text->getEntryCount() > logs.size())
+    {
+        log_text->removeEntry(0);
+    }
+    if (log_text->getEntryCount() > 0 && logs.size() > 0 &&
+        log_text->getEntryText(0) != logs[0].text)
+    {
+        bool updated = false;
+        for (unsigned int n = 1; n < log_text->getEntryCount(); n++)
+        {
+            if (log_text->getEntryText(n) == logs[0].text)
+            {
+                for (unsigned int m = 0; m < n; m++)
+                    log_text->removeEntry(0);
+                updated = true;
+                break;
+            }
+        }
+        if (!updated)
+            log_text->clearEntries();
+    }
+
+    while (log_text->getEntryCount() < logs.size())
+    {
+        int n = log_text->getEntryCount();
+
+        // Same station label behaviour as ShipLogScreen
+        if (gameGlobalInfo->logs_by_station && logs[n].position != max_crew_positions)
+            logs[n].prefix = logs[n].prefix + "\t[" + getCrewPositionName(logs[n].position) + "]\t";
+
+        log_text->addEntry(logs[n].prefix, logs[n].text, logs[n].color);
     }
 }
 
