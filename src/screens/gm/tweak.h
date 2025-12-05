@@ -289,8 +289,10 @@ private:
     GuiToggleButton* message_all_toggle;
     GuiTextEntry* db_title_entry;
     GuiButton*    send_to_db_button;
+    GuiButton*    send_screen_button;
     void onSendToDatabase();
     GuiButton* send_local_button;
+    P<PlayerSpaceship> base_target;
 public:
     GuiShipTweakMessages(GuiContainer* owner);
 
