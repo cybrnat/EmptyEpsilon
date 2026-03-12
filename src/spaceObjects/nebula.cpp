@@ -25,7 +25,8 @@ Nebula::Nebula()
     setRotation(random(0, 360));
     radar_visual = irandom(1, 3);
     setRadarSignatureInfo(0.0, 0.8, -1.0);
-
+    addInfos(0, "Type", "Nebula");
+    setDescriptions("Nebula. Inhibits radar view.", "~7% metals, ~9% metalloids, ~80% hydrogen");
     registerMemberReplication(&radar_visual);
 
     for(int n=0; n<cloud_count; n++)
