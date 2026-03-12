@@ -177,7 +177,7 @@ EngineeringScreen::EngineeringScreen(GuiContainer* owner, ECrewPosition crew_pos
     system_rows[SYS_Scanner].button->setIcon("gui/icons/station-relay");
 
     for(int n=0; n<SYS_COUNT; n++)
-    {z
+    {
         (new GuiPowerDamageIndicator(system_rows[n].button, n + "_INDICATOR", ESystem(n), ACenterLeft, my_spaceship, false))->setPosition(0, 0, ABottomLeft)->setSize(GuiElement::GuiSizeMax, GuiElement::GuiSizeMax);
     }
 
