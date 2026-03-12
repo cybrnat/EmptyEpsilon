@@ -177,7 +177,7 @@ EngineeringScreen::EngineeringScreen(GuiContainer* owner, ECrewPosition crew_pos
     system_rows[SYS_Scanner].button->setIcon("gui/icons/station-relay");
 
     for(int n=0; n<SYS_COUNT; n++)
-    {
+    {z
         (new GuiPowerDamageIndicator(system_rows[n].button, n + "_INDICATOR", ESystem(n), ACenterLeft, my_spaceship, false))->setPosition(0, 0, ABottomLeft)->setSize(GuiElement::GuiSizeMax, GuiElement::GuiSizeMax);
     }
 
@@ -472,7 +472,7 @@ void EngineeringScreen::onDraw(sf::RenderTarget& window)
         if (selected_system != SYS_None)
         {
             ShipSystem& system = my_spaceship->systems[selected_system];
-            power_label->setText(tr("Power: {power_level}%/{power_request}%").format({{"power_level", string(int(system.power_request * 100))},{"power_request", string(int(system.power_request * 100))}}));
+            power_label->setText(tr("Power: {power_level}%/{power_request}%").format({{"power_level", string(int(system.power_level * 100))},{"power_request", string(int(system.power_request * 100))}}));
             power_slider->setValue(system.power_request);
             coolant_label->setText(tr("Coolant: {coolant_level}%/{coolant_request}%").format({{"coolant_level", string(int(system.coolant_level / my_spaceship->max_coolant_per_system * 100))},{"coolant_request", string(int(std::min(system.coolant_request, my_spaceship->max_coolant) / my_spaceship->max_coolant_per_system * 100))}}));
             coolant_slider->setEnable(!my_spaceship->auto_coolant_enabled);
