@@ -26,7 +26,7 @@ Nebula::Nebula()
     radar_visual = irandom(1, 3);
     setRadarSignatureInfo(0.0, 0.8, -1.0);
     addInfos(0, "Type", "Nebula");
-    setDescriptions("Nebula. Inhibits radar view.", "~7% metals, ~9% metalloids, ~80% hydrogen");
+    setDescriptions("Nebula. Enhibits radar view.", "~7% metals, ~9% metalloids, ~80% hydrogen");
     registerMemberReplication(&radar_visual);
 
     for(int n=0; n<cloud_count; n++)
@@ -167,8 +167,8 @@ bool Nebula::blockedByNebula(sf::Vector2f start, sf::Vector2f end)
 {
     sf::Vector2f startEndDiff = end - start;
     float startEndLength = sf::length(startEndDiff);
-    // if (startEndLength < 5000.0f)
-    //     return false;
+    if (startEndLength < 5000.0f)
+        return false;
 
     foreach(Nebula, n, nebula_list)
     {
